@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project is an appointment booking system that uses a Language Learning Model (LLM) for natural language interaction, allowing users to schedule appointments seamlessly. The system handles user inputs, manages availability, and confirms bookings.
+This project is an appointment booking system that uses a Large Language Model (LLM) LLama3 for natural language interaction, allowing users to schedule appointments seamlessly. The system handles user inputs, manages availability, and confirms bookings.
 
 ## Features
 
@@ -15,6 +15,7 @@ This project is an appointment booking system that uses a Language Learning Mode
 - `app.py`: Main application.
 - `database.py`: Handles database operations.
 - `question_generation.py`: Generates relevant questions for user interaction.
+- `connection.py`: Used to create connection with MySQL.
 
 ## Installation
 
@@ -36,3 +37,8 @@ This project is an appointment booking system that uses a Language Learning Mode
 Start the application using:
 ```bash
 python app.py
+```
+## Future Improvements
+- **Integration with real-world calendar services.
+- **Multilingual support.
+- **Enhanced natural language processing for more complex queries.
