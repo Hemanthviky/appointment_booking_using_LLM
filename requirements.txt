@@ -1,0 +1,5 @@
+langchain_ollama
+datetime
+re
+spacy
+pyodbc
