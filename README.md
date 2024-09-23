@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project is an appointment booking system that uses a Large Language Model (LLM) LLama3 for natural language interaction, allowing users to schedule appointments seamlessly. The system handles user inputs, manages availability, and confirms bookings.
+This project is an appointment booking system that uses a Large Language Model (LLM) LLama3 for natural language interaction, allowing users to schedule appointments seamlessly. The system handles user inputs, manages availability, and confirms bookings. And used StreamLit for the the User Interface.
 
 ## Features
 
@@ -38,6 +38,9 @@ Start the application using:
 ```bash
 python app.py
 ```
+![image](https://github.com/user-attachments/assets/cf7f93b7-8820-48f7-99a9-91db258ba76e)
+
+
 ## Future Improvements
 - **Integration with real-world calendar services.
 - **Multilingual support.
