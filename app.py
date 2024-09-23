@@ -8,6 +8,26 @@ from langchain_ollama import OllamaLLM
 
 model = OllamaLLM(model="llama3")
 
+
+import spacy
+
+def extract_name(text):
+    # Load the English NLP model
+    nlp = spacy.load("en_core_web_sm")
+    # Process the text
+    doc = nlp(text)
+    # Try to extract a named entity labeled as 'PERSON'
+    for ent in doc.ents:
+        if ent.label_ == 'PERSON':
+            return ent.text
+    # If no 'PERSON' entity found, look for the first proper noun (PROPN)
+    for token in doc:
+        if token.pos_ == 'PROPN':
+            return token.text
+    # If no name found, return an empty string
+    return ""
+
+
 # Generate response using LLaMA
 def generate_question(context, user_data=None):
     prompt = f"""
@@ -32,7 +52,7 @@ def nlp_validate(input_text, question):
     nlp = spacy.load("en_core_web_sm")
     
     if question == "name":
-        return input_text.replace(" ", "").isalpha()
+        return input_text.isalpha()
     elif question == "email":
         return re.match(r"[^@]+@[^@]+\.[^@]+", input_text)
     elif question == "phone":
@@ -106,7 +126,6 @@ def book_appointment(name, email, phone, age, date, slot, conn):
     conn.commit()
 
 # Streamlit-based chatbot
-# Streamlit-based chatbot
 def chatbot():
     # Setup database connection
     conn = setup_database()
@@ -114,150 +133,173 @@ def chatbot():
         st.error("Failed to connect to the database.")
         return
     
-    # Session state to store conversation context and user data
+    # Initialize session state
     if 'context' not in st.session_state:
         st.session_state.context = 'start'
         st.session_state.user_data = {}
         st.session_state.conversation_history = []
-
-    context = st.session_state.context
-    user_data = st.session_state.user_data
-
-    # Helper function to move to the next question only after successful submission
-    def move_to_next_context():
-        if st.session_state.context == 'start':
-            st.session_state.context = 'email'
-        elif st.session_state.context == 'email':
-            st.session_state.context = 'phone'
-        elif st.session_state.context == 'phone':
-            st.session_state.context = 'age'
-        elif st.session_state.context == 'age':
-            st.session_state.context = 'appointment_date'
-        elif st.session_state.context == 'appointment_date':
-            st.session_state.context = 'slot_selection'
+        st.session_state.current_question = None
 
     # Display conversation history
     for entry in st.session_state.conversation_history:
-        st.write(entry)
+        if entry['type'] == 'assistant':
+            st.chat_message(name="assistant").write(entry['message'])
+        elif entry['type'] == 'user':
+            st.chat_message(name="user").write(entry['message'])
 
     # Process based on context
-    if context == 'start':
-        if 'name' not in user_data:
+    if st.session_state.context == 'start':
+        handle_start_context()
+    elif st.session_state.context == 'email':
+        handle_email_context()
+    elif st.session_state.context == 'phone':
+        handle_phone_context()
+    elif st.session_state.context == 'age':
+        handle_age_context()
+    elif st.session_state.context == 'appointment_date':
+        handle_appointment_date_context(conn)
+    elif st.session_state.context == 'slot_selection':
+        handle_slot_selection_context(conn)
+    elif st.session_state.context == 'done':
+        st.chat_message(name="assistant").write("Thank you for using the appointment booking system!")
+
+def handle_start_context():
+    if 'name' not in st.session_state.user_data:
+        if st.session_state.current_question is None:
             question = generate_question("ask the name of the user")
-            st.write(question)
-            name = st.text_input("Enter your name:", key="name_input")
-            if st.button("Submit Name") and name:
-                if nlp_validate(name, "name"):
-                    st.session_state.user_data['name'] = name
-                    st.session_state.conversation_history.append(f"Bot: {question}")
-                    st.session_state.conversation_history.append(f"You: {name}")
-                    move_to_next_context()
-                else:
-                    st.write(generate_question("Invalid name. Please try again."))
-        else:
-            move_to_next_context()  # This prevents the question from being repeated
-
-    if context == 'email':
-        if 'email' not in user_data:
-            question = generate_question("Ask the user's email", user_data)
-            st.write(question)
-            email = st.text_input("Enter your email:", key="email_input")
-            if st.button("Submit Email") and email:
-                if nlp_validate(email, "email"):
-                    st.session_state.user_data['email'] = email
-                    st.session_state.conversation_history.append(f"Bot: {question}")
-                    st.session_state.conversation_history.append(f"You: {email}")
-                    move_to_next_context()
-                else:
-                    st.write(generate_question("Invalid email. Please try again."))
-        else:
-            move_to_next_context()
-
-    if context == 'phone':
-        if 'phone' not in user_data:
-            question = generate_question("Ask the user's phone number", user_data)
-            st.write(question)
-            phone = st.text_input("Enter your phone number:", key="phone_input")
-            if st.button("Submit Phone") and phone:
-                if nlp_validate(phone, "phone"):
-                    st.session_state.user_data['phone'] = phone
-                    st.session_state.conversation_history.append(f"Bot: {question}")
-                    st.session_state.conversation_history.append(f"You: {phone}")
-                    move_to_next_context()
-                else:
-                    st.write(generate_question("Invalid phone number. Please try again."))
-        else:
-            move_to_next_context()
-
-    if context == 'age':
-        if 'age' not in user_data:
-            question = generate_question("Ask the user's age", user_data)
-            st.write(question)
-            age = st.text_input("Enter your age:", key="age_input")
-            if st.button("Submit Age") and age:
-                if nlp_validate(age, "age"):
-                    st.session_state.user_data['age'] = age
-                    st.session_state.conversation_history.append(f"Bot: {question}")
-                    st.session_state.conversation_history.append(f"You: {age}")
-                    move_to_next_context()
-                else:
-                    st.write(generate_question("Invalid age. Please enter a valid age."))
-        else:
-            move_to_next_context()
-
-    if context == 'appointment_date':
-        if 'appointment_date' not in user_data:
-            question = generate_question("Ask the user's appointment date", user_data)
-            st.write(question)
-            
-            appointment_date = st.date_input("Select appointment date:", 
-                                             min_value=datetime.now().date(), 
-                                             key="date_input")
-            if st.button("Submit Date"):
-                st.session_state.user_data['appointment_date'] = appointment_date.strftime("%Y-%m-%d")
-                st.session_state.conversation_history.append(f"Bot: {question}")
-                st.session_state.conversation_history.append(f"You: {appointment_date}")
-                move_to_next_context()
-        else:
-            move_to_next_context()
-
-    if context == 'slot_selection':
-        if 'slot' not in user_data:
-            available_slots = get_available_slots(st.session_state.user_data['appointment_date'], conn)
-            if not available_slots:
-                st.write(f"No available slots on {st.session_state.user_data['appointment_date']}.")
-                
-                # Suggest next available date
-                next_date = suggest_next_available_date(datetime.strptime(st.session_state.user_data['appointment_date'], "%Y-%m-%d"), conn)
-                if next_date:
-                    st.write(f"The next available date is {next_date.strftime('%Y-%m-%d')} with slots: {', '.join(get_available_slots(next_date.strftime('%Y-%m-%d'), conn))}")
-                else:
-                    st.write("No available slots in the upcoming days.")
-                
-                # Prompt the user to select a new date
-                question = "Please select a new date for your appointment:"
-                st.write(question)
-                new_date = st.date_input("Select a new appointment date:", 
-                                         min_value=datetime.now().date(), 
-                                         key="new_date_input")
-                if st.button("Submit New Date"):
-                    st.session_state.user_data['appointment_date'] = new_date.strftime("%Y-%m-%d")
-                    st.session_state.conversation_history.append(f"Bot: {question}")
-                    st.session_state.conversation_history.append(f"You: {new_date}")
-                    st.session_state.context = 'slot_selection'
+            st.session_state.current_question = question
+            st.chat_message(name="assistant").write(question)
+        
+        prompt = st.chat_input("Enter your name:")
+        if prompt:
+            if nlp_validate(prompt, "name"):
+                st.session_state.user_data['name'] = prompt
+                st.session_state.conversation_history.append({'type': 'assistant', 'message': st.session_state.current_question})
+                st.session_state.conversation_history.append({'type': 'user', 'message': prompt})
+                st.session_state.context = 'email'
+                st.session_state.current_question = None
+                st.rerun()
             else:
-                question = "Please select a slot from the available options:"
-                st.write(question)
-                slot = st.selectbox("Select a slot:", available_slots, key="slot_selection")
-                if st.button("Confirm Appointment"):
-                    book_appointment(st.session_state.user_data['name'], st.session_state.user_data['email'], st.session_state.user_data['phone'], st.session_state.user_data['age'], st.session_state.user_data['appointment_date'], slot, conn)
-                    st.session_state.conversation_history.append(f"Bot: {question}")
-                    st.session_state.conversation_history.append(f"You: {slot}")
-                    st.write("Your appointment is confirmed! for this date and time with user information")
-                    st.session_state.context = 'done'
+                st.chat_message(name="assistant").write("Invalid name. Please try again.")
+    else:
+        st.session_state.context = 'email'
+        st.rerun()
 
-    if context == 'done':
-        st.write("Thank you for using the appointment booking system!")
+def handle_email_context():
+    if 'email' not in st.session_state.user_data:
+        if st.session_state.current_question is None:
+            question = generate_question("Ask the user's email", st.session_state.user_data)
+            st.session_state.current_question = question
+            st.chat_message(name="assistant").write(question)
+        
+        prompt = st.chat_input("Enter your email:")
+        if prompt:
+            if nlp_validate(prompt, "email"):
+                st.session_state.user_data['email'] = prompt
+                st.session_state.conversation_history.append({'type': 'assistant', 'message': st.session_state.current_question})
+                st.session_state.conversation_history.append({'type': 'user', 'message': prompt})
+                st.session_state.context = 'phone'
+                st.session_state.current_question = None
+                st.rerun()
+            else:
+                st.chat_message(name="assistant").write("Invalid email. Please try again.")
+    else:
+        st.session_state.context = 'phone'
+        st.rerun()
+
+def handle_phone_context():
+    if 'phone' not in st.session_state.user_data:
+        if st.session_state.current_question is None:
+            question = generate_question("Ask the user's phone number", st.session_state.user_data)
+            st.session_state.current_question = question
+            st.chat_message(name="assistant").write(question)
+        
+        prompt = st.chat_input("Enter your phone number:")
+        if prompt:
+            if nlp_validate(prompt, "phone"):
+                st.session_state.user_data['phone'] = prompt
+                st.session_state.conversation_history.append({'type': 'assistant', 'message': st.session_state.current_question})
+                st.session_state.conversation_history.append({'type': 'user', 'message': prompt})
+                st.session_state.context = 'age'
+                st.session_state.current_question = None
+                st.rerun()
+            else:
+                st.chat_message(name="assistant").write("Invalid phone number. Please try again.")
+    else:
+        st.session_state.context = 'age'
+        st.rerun()
+
+def handle_age_context():
+    if 'age' not in st.session_state.user_data:
+        if st.session_state.current_question is None:
+            question = generate_question("Ask the user's age", st.session_state.user_data)
+            st.session_state.current_question = question
+            st.chat_message(name="assistant").write(question)
+        
+        prompt = st.chat_input("Enter your age:")
+        if prompt:
+            if nlp_validate(prompt, "age"):
+                st.session_state.user_data['age'] = prompt
+                st.session_state.conversation_history.append({'type': 'assistant', 'message': st.session_state.current_question})
+                st.session_state.conversation_history.append({'type': 'user', 'message': prompt})
+                st.session_state.context = 'appointment_date'
+                st.session_state.current_question = None
+                st.rerun()
+            else:
+                st.chat_message(name="assistant").write("Invalid age. Please enter a valid age.")
+    else:
+        st.session_state.context = 'appointment_date'
+        st.rerun()
+
+def handle_appointment_date_context(conn):
+    if 'appointment_date' not in st.session_state.user_data:
+        if st.session_state.current_question is None:
+            question = generate_question("Ask the user's appointment date", st.session_state.user_data)
+            st.session_state.current_question = question
+            st.chat_message(name="assistant").write(question)
+        
+        appointment_date = st.date_input("Select appointment date:", min_value=datetime.now().date())
+        if st.button("Submit Date"):
+            st.session_state.user_data['appointment_date'] = appointment_date.strftime("%Y-%m-%d")
+            st.session_state.conversation_history.append({'type': 'assistant', 'message': st.session_state.current_question})
+            st.session_state.conversation_history.append({'type': 'user', 'message': str(appointment_date)})
+            st.session_state.context = 'slot_selection'
+            st.session_state.current_question = None
+            st.rerun()
+    else:
+        st.session_state.context = 'slot_selection'
+        st.rerun()
+
+def handle_slot_selection_context(conn):
+    if 'slot' not in st.session_state.user_data:
+        available_slots = get_available_slots(st.session_state.user_data['appointment_date'], conn)
+        if not available_slots:
+            st.chat_message(name="assistant").write(f"No available slots on {st.session_state.user_data['appointment_date']}.")
+            
+            next_date = suggest_next_available_date(datetime.strptime(st.session_state.user_data['appointment_date'], "%Y-%m-%d"), conn)
+            if next_date:
+                st.chat_message(name="assistant").write(f"The next available date is {next_date.strftime('%Y-%m-%d')} with slots: {', '.join(get_available_slots(next_date.strftime('%Y-%m-%d'), conn))}")
+            else:
+                st.chat_message(name="assistant").write("No available slots in the upcoming days.")
+            
+            new_date = st.date_input("Select a new appointment date:", min_value=datetime.now().date())
+            if st.button("Submit New Date"):
+                st.session_state.user_data['appointment_date'] = new_date.strftime("%Y-%m-%d")
+                st.session_state.conversation_history.append({'type': 'assistant', 'message': "Please select a new date for your appointment:"})
+                st.session_state.conversation_history.append({'type': 'user', 'message': str(new_date)})
+                st.rerun()
+        else:
+            slot = st.selectbox("Select a slot:", available_slots)
+            if st.button("Confirm Appointment"):
+                book_appointment(st.session_state.user_data['name'], st.session_state.user_data['email'], st.session_state.user_data['phone'], st.session_state.user_data['age'], st.session_state.user_data['appointment_date'], slot, conn)
+                st.session_state.conversation_history.append({'type': 'assistant', 'message': "Please select a slot from the available options:"})
+                st.session_state.conversation_history.append({'type': 'user', 'message': slot})
+                st.chat_message(name="assistant").write("Your appointment is confirmed!")
+                st.session_state.context = 'done'
+                st.rerun()
+    else:
+        st.session_state.context = 'done'
+        st.rerun()
 
 # Run the bot
 if __name__ == "__main__":
