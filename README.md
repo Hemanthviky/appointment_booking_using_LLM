@@ -38,6 +38,10 @@ Start the application using:
 ```bash
 python app.py
 ```
+using the streamlit created the calendar to select the date and only present and future dates can be selected
+
+![Screenshot 2024-09-23 170709](https://github.com/user-attachments/assets/33ff0f9f-1ffe-4ac2-a81a-7e63b2781307)
+## Here is the full output
 ![image](https://github.com/user-attachments/assets/cf7f93b7-8820-48f7-99a9-91db258ba76e)
 
 
