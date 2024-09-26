@@ -46,6 +46,6 @@ using the streamlit created the calendar to select the date and only present and
 
 
 ## Future Improvements
-- **Integration with real-world calendar services.
-- **Multilingual support.
-- **Enhanced natural language processing for more complex queries.
+- **Integration with real-world calendar services.**
+- **Multilingual support.**
+- **Enhanced natural language processing for more complex queries.**
